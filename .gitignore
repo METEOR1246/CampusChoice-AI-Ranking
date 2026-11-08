@@ -1,0 +1,9 @@
+# Dependencies
+node_modules/
+
+# Vite build output
+dist/
+
+# Local env / logs
+*.log
+.DS_Store
