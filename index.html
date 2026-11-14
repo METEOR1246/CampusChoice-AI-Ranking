@@ -7,20 +7,33 @@
   </head>
   <body>
     <header class="app-header">
+      <span class="eyebrow">Discover your campus</span>
       <h1>CampusChoice</h1>
       <p class="app-subtitle">
-        A transparent, rule-based ranking of university events for the demo user.
+        Find your next campus event. Explore the ranking, understand the recommendations, and choose for yourself.
       </p>
     </header>
 
     <div class="notice" role="note" aria-label="Fictional data notice">
-      <strong>Demonstration data:</strong> every event below is fictional and was
-      created for this assignment prototype. The events are not real
-      University of Birmingham activities and no bookings can be made.
+      <strong>Fictional demonstration events.</strong> Created for this assignment;
+      these are not real University of Birmingham activities. No bookings or payments.
     </div>
 
     <main class="layout">
-      <section class="panel" aria-labelledby="prefs-heading">
+      <section class="panel controls-panel" aria-label="Ranking controls and demo preferences">
+        <div class="mode-control">
+          <fieldset class="mode-switch" aria-describedby="mode-help">
+            <legend>Ranking mode</legend>
+            <div class="mode-track" data-mode="basic">
+              <span class="mode-slider" aria-hidden="true"></span>
+              <label class="mode-segment"><input type="radio" name="ranking-mode" value="basic" checked /><span>Basic Ranking</span></label>
+              <label class="mode-segment"><input type="radio" name="ranking-mode" value="explained" /><span>Explained Ranking</span></label>
+            </div>
+          </fieldset>
+          <p id="mode-help" class="list-sub">
+            The same events and order. Choose Explained to see why.
+          </p>
+        </div>
         <div id="preferences"></div>
       </section>
 
@@ -48,7 +61,8 @@
     </dialog>
 
     <footer class="app-footer">
-      <p>
+      <p>CampusChoice · A transparent, rule-based demonstration. Not a trained AI model.</p>
+      <p id="ranking-formula" hidden>
         Scoring: <code>Score = 0.5&nbsp;&times;&nbsp;Interest + 0.3&nbsp;&times;&nbsp;Time
         + 0.2&nbsp;&times;&nbsp;Affordability</code>. This is a transparent
         rule-based ranking, not a trained AI model.

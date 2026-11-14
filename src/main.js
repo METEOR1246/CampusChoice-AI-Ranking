@@ -1,15 +1,16 @@
 /**
- * CampusChoice — Milestone 2 (Basic Ranking) application entry point.
+ * CampusChoice — Basic and Explained Ranking application entry point.
  *
  * Wires the local dataset, the rule-based ranking module and the DOM together.
  * Scope: browsing a ranked list, viewing details and selecting one event.
- * Explained Ranking, Adjustable Ranking and behavioural inference are out of scope.
+ * Explanations use the same ranked entries. Adjustable Ranking is out of scope.
  */
 
 import './styles.css';
 import { EVENTS } from './data/events.js';
 import { DEMO_USER } from './data/preferences.js';
 import { rankEvents } from './ranking.js';
+import { initModeSwitch } from './mode-switch.js';
 import {
   renderPreferences,
   renderRankedList,
@@ -21,6 +22,8 @@ const ranked = rankEvents(EVENTS, DEMO_USER);
 
 /** @type {string|null} */
 let selectedEventId = null;
+let mode = 'basic';
+const expandedIds = new Set();
 
 const prefsEl = document.getElementById('preferences');
 const listEl = document.getElementById('event-list');
@@ -36,7 +39,7 @@ function findEntry(eventId) {
 
 function render() {
   renderPreferences(prefsEl, DEMO_USER);
-  renderRankedList(listEl, ranked, selectedEventId);
+  renderRankedList(listEl, ranked, selectedEventId, mode, expandedIds);
   renderSelectionBanner(bannerEl, findEntry(selectedEventId));
 }
 
@@ -44,6 +47,7 @@ function render() {
 function selectEvent(eventId) {
   selectedEventId = selectedEventId === eventId ? null : eventId;
   render();
+  listEl.querySelector(`[data-action="select"][data-event-id="${eventId}"]`)?.focus();
 }
 
 /** Clear the current selection. */
@@ -56,7 +60,7 @@ function clearSelection() {
 function openDetails(eventId) {
   const entry = findEntry(eventId);
   if (!entry) return;
-  renderDetails(detailsBody, entry);
+  renderDetails(detailsBody, entry, mode);
   if (typeof dialogEl.showModal === 'function') {
     dialogEl.showModal();
   } else {
@@ -71,6 +75,22 @@ listEl.addEventListener('click', (event) => {
   const { action, eventId } = button.dataset;
   if (action === 'details') openDetails(eventId);
   if (action === 'select') selectEvent(eventId);
+  if (action === 'explain' && mode === 'explained') {
+    if (expandedIds.has(eventId)) expandedIds.delete(eventId);
+    else expandedIds.add(eventId);
+    const expanded = expandedIds.has(eventId);
+    document.getElementById(`explanation-${eventId}`).hidden = !expanded;
+    button.setAttribute('aria-expanded', String(expanded));
+    button.textContent = expanded ? 'Hide explanation' : 'Why recommended?';
+  }
+});
+
+initModeSwitch(document.querySelector('.mode-switch'), (value) => {
+  mode = value;
+  // Mode changes affect disclosure only, never the ranking or selected event.
+  expandedIds.clear();
+  renderRankedList(listEl, ranked, selectedEventId, mode, expandedIds);
+  document.getElementById('ranking-formula').hidden = mode !== 'explained';
 });
 
 bannerEl.addEventListener('click', (event) => {

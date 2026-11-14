@@ -14,12 +14,14 @@
  * @property {number} price       Ticket price in GBP (0 means free).
  * @property {string} description Short descriptive text shown in the details view.
  * @property {string[]} tags      Interest tags used for browsing/context.
+ * @property {string} image       Public path reserved for a future event illustration.
  */
 
 /** @type {Event[]} */
 export const EVENTS = [
   {
     id: 'E01',
+    image: '/images/events/coding-workshop.webp',
     title: 'Coding Workshop',
     category: 'Technology',
     day: 'Wednesday',
@@ -31,6 +33,7 @@ export const EVENTS = [
   },
   {
     id: 'E02',
+    image: '/images/events/ai-ethics-seminar.webp',
     title: 'AI Ethics Seminar',
     category: 'Technology',
     day: 'Tuesday',
@@ -42,6 +45,7 @@ export const EVENTS = [
   },
   {
     id: 'E03',
+    image: '/images/events/graduate-careers-fair.webp',
     title: 'Graduate Careers Fair',
     category: 'Career',
     day: 'Thursday',
@@ -53,6 +57,7 @@ export const EVENTS = [
   },
   {
     id: 'E04',
+    image: '/images/events/interview-skills-clinic.webp',
     title: 'Interview Skills Clinic',
     category: 'Career',
     day: 'Monday',
@@ -64,6 +69,7 @@ export const EVENTS = [
   },
   {
     id: 'E05',
+    image: '/images/events/football-social.webp',
     title: 'Football Social',
     category: 'Sports',
     day: 'Friday',
@@ -75,6 +81,7 @@ export const EVENTS = [
   },
   {
     id: 'E06',
+    image: '/images/events/campus-yoga.webp',
     title: 'Campus Yoga',
     category: 'Sports',
     day: 'Tuesday',
@@ -86,6 +93,7 @@ export const EVENTS = [
   },
   {
     id: 'E07',
+    image: '/images/events/student-music-night.webp',
     title: 'Student Music Night',
     category: 'Arts',
     day: 'Saturday',
@@ -97,6 +105,7 @@ export const EVENTS = [
   },
   {
     id: 'E08',
+    image: '/images/events/photography-walk.webp',
     title: 'Photography Walk',
     category: 'Arts',
     day: 'Saturday',
@@ -108,6 +117,7 @@ export const EVENTS = [
   },
   {
     id: 'E09',
+    image: '/images/events/community-volunteering-meetup.webp',
     title: 'Community Volunteering Meetup',
     category: 'Community',
     day: 'Wednesday',
@@ -119,6 +129,7 @@ export const EVENTS = [
   },
   {
     id: 'E10',
+    image: '/images/events/international-food-exchange.webp',
     title: 'International Food Exchange',
     category: 'Community',
     day: 'Sunday',

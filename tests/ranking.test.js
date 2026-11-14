@@ -104,7 +104,7 @@ describe('scoreEvent', () => {
     };
 
     for (const [id, parts] of Object.entries(expected)) {
-      expect(scoreEvent(byId(id), DEMO_USER)).toEqual(parts);
+      expect(scoreEvent(byId(id), DEMO_USER)).toMatchObject(parts);
     }
   });
 

@@ -1,9 +1,13 @@
 /**
- * UI rendering helpers for CampusChoice (Milestone 2).
+ * UI rendering helpers for CampusChoice.
  *
  * Kept free of ranking maths so the scoring logic stays testable in isolation.
  * All user-supplied strings come from the local dataset.
  */
+
+import { explainEvent } from './explanations.js';
+import { DEMO_USER } from './data/preferences.js';
+import { mountEventImages } from './event-images.js';
 
 /** Format a price in GBP, rendering zero as "Free". */
 export function formatPrice(price) {
@@ -46,17 +50,28 @@ export function renderPreferences(container, preferences) {
  * @param {HTMLElement} container
  * @param {Array<ReturnType<import('./ranking.js').rankEvents>[number]>} ranked
  * @param {string|null} selectedEventId
+ * @param {'basic'|'explained'} mode
+ * @param {Set<string>} expandedIds
  */
-export function renderRankedList(container, ranked, selectedEventId) {
+export function renderRankedList(container, ranked, selectedEventId, mode = 'basic', expandedIds = new Set()) {
   container.innerHTML = ranked
-    .map(({ event, score, rank }) => {
+    .map((entry) => {
+      const { event, score, rank } = entry;
       const isSelected = event.id === selectedEventId;
+      const expanded = expandedIds.has(event.id);
       return `
         <li>
           <article
             class="event-card${isSelected ? ' is-selected' : ''}"
             data-event-id="${event.id}"
           >
+            <div class="event-media" data-image="${event.image}" data-title="${event.title}">
+              <div class="image-placeholder">
+                <span class="image-icon" aria-hidden="true"></span>
+                <span>Image coming soon</span>
+              </div>
+            </div>
+            <div class="event-content">
             <div class="card-head">
               <span class="rank-badge" aria-label="Rank ${rank}">#${rank}</span>
               <div class="card-title-block">
@@ -93,11 +108,37 @@ export function renderRankedList(container, ranked, selectedEventId) {
               >
                 ${isSelected ? 'Selected ✓' : 'Select event'}
               </button>
+              ${mode === 'explained' ? `
+                <button type="button" class="btn btn--explain"
+                  data-action="explain" data-event-id="${event.id}"
+                  aria-expanded="${expanded}" aria-controls="explanation-${event.id}">
+                  ${expanded ? 'Hide explanation' : 'Why recommended?'}
+                </button>` : ''}
+            </div>
+            ${mode === 'explained' ? renderExplanation(entry, expanded) : ''}
             </div>
           </article>
         </li>`;
     })
     .join('');
+  mountEventImages(container);
+}
+
+/** Progressive disclosure of weighted points, rather than raw factor scores. */
+function renderExplanation(entry, expanded) {
+  const explanation = explainEvent(entry, DEMO_USER);
+  return `
+    <section id="explanation-${entry.event.id}" class="explanation-panel"
+      aria-labelledby="explanation-title-${entry.event.id}" ${expanded ? '' : 'hidden'}>
+      <h4 id="explanation-title-${entry.event.id}">Why ${entry.event.title} is recommended</h4>
+      <ul class="breakdown">
+        ${explanation.factors.map(({ label, value }) =>
+          `<li><span>${label}</span><strong>${value}</strong><span class="breakdown-note">points</span></li>`).join('')}
+      </ul>
+      <p class="details-total">Total ranking score: <strong>${explanation.score}</strong></p>
+      <p>${explanation.summary}</p>
+      <p class="list-sub">${explanation.ordering}</p>
+    </section>`;
 }
 
 /**
@@ -129,8 +170,9 @@ export function renderSelectionBanner(container, selected) {
  *
  * @param {HTMLElement} container
  * @param {{ event: import('./data/events.js').Event, interest: number, time: number, affordability: number, score: number, rank: number }} entry
+ * @param {'basic'|'explained'} mode
  */
-export function renderDetails(container, entry) {
+export function renderDetails(container, entry, mode = 'basic') {
   const { event, interest, time, affordability, score, rank } = entry;
   const tags = event.tags.map((tag) => `<span class="tag">#${tag}</span>`).join('');
 
@@ -146,7 +188,7 @@ export function renderDetails(container, entry) {
 
     <div class="tag-row">${tags}</div>
 
-    <h3 class="details-subhead">Ranking breakdown</h3>
+    ${mode === 'explained' ? `<h3 class="details-subhead">Ranking breakdown</h3>
     <ul class="breakdown">
       <li><span>Interest</span><span>${interest}</span><span class="breakdown-note">0.5 weight</span></li>
       <li><span>Time</span><span>${time}</span><span class="breakdown-note">0.3 weight</span></li>
@@ -154,6 +196,6 @@ export function renderDetails(container, entry) {
     </ul>
     <p class="details-total">
       Total score <strong>${score}</strong> · current rank <strong>#${rank}</strong>
-    </p>
+    </p>` : ''}
   `;
 }

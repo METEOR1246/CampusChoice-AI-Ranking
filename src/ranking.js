@@ -78,18 +78,20 @@ export function computeAffordability(price) {
  *
  * @param {import('./data/events.js').Event} event
  * @param {import('./data/preferences.js').UserPreferences} preferences
- * @returns {{ interest: number, time: number, affordability: number, score: number }}
+ * @returns {{ interest: number, time: number, affordability: number, contributions: { interest: number, time: number, affordability: number }, score: number }}
  */
 export function scoreEvent(event, preferences) {
   const interest = computeInterest(event.category, preferences);
   const time = computeTime(event.time, preferences);
   const affordability = computeAffordability(event.price);
-  const score =
-    WEIGHTS.interest * interest +
-    WEIGHTS.time * time +
-    WEIGHTS.affordability * affordability;
+  const contributions = {
+    interest: WEIGHTS.interest * interest,
+    time: WEIGHTS.time * time,
+    affordability: WEIGHTS.affordability * affordability,
+  };
+  const score = contributions.interest + contributions.time + contributions.affordability;
 
-  return { interest, time, affordability, score };
+  return { interest, time, affordability, contributions, score };
 }
 
 /**
@@ -98,7 +100,7 @@ export function scoreEvent(event, preferences) {
  *
  * @param {import('./data/events.js').Event[]} events
  * @param {import('./data/preferences.js').UserPreferences} preferences
- * @returns {Array<{ event: import('./data/events.js').Event, interest: number, time: number, affordability: number, score: number, rank: number }>}
+ * @returns {Array<ReturnType<typeof scoreEvent> & { event: import('./data/events.js').Event, rank: number }>}
  */
 export function rankEvents(events, preferences) {
   return events
