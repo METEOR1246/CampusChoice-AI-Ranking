@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EVENTS } from '../src/data/events.js';
 import { DEMO_USER } from '../src/data/preferences.js';
+import { INTEREST_TOPICS, EVENT_TOPIC_IDS, matchesInterestTopic } from '../src/data/interest-topics.js';
 import {
   getTimeSlot,
   computeInterest,
@@ -11,6 +12,7 @@ import {
   WEIGHTS,
   INTEREST_PER_LEVEL,
   PRICE_PENALTY_PER_GBP,
+  TAG_MATCH_COEFFICIENT,
 } from '../src/ranking.js';
 
 const byId = (id) => EVENTS.find((event) => event.id === id);
@@ -39,6 +41,104 @@ describe('dataset', () => {
     expect(byId('E08')).toMatchObject({ category: 'Arts', day: 'Saturday', time: '14:00', price: 0 });
     expect(byId('E09')).toMatchObject({ category: 'Community', day: 'Wednesday', time: '19:00', price: 0 });
     expect(byId('E10')).toMatchObject({ category: 'Community', day: 'Sunday', time: '14:00', price: 5 });
+  });
+});
+
+describe('topic preference ranking', () => {
+  it('maps the actual ten event IDs and titles to exactly the requested eight topics', () => {
+    const expected = [
+      ['E01', 'Coding Workshop', 'Technology & AI'],
+      ['E02', 'AI Ethics Seminar', 'Technology & AI'],
+      ['E03', 'Graduate Careers Fair', 'Career Development'],
+      ['E04', 'Interview Skills Clinic', 'Career Development'],
+      ['E05', 'Football Social', 'Sports'],
+      ['E06', 'Campus Yoga', 'Wellbeing'],
+      ['E07', 'Student Music Night', 'Music'],
+      ['E08', 'Photography Walk', 'Photography'],
+      ['E09', 'Community Volunteering Meetup', 'Volunteering'],
+      ['E10', 'International Food Exchange', 'Food & Culture'],
+    ];
+    expect(INTEREST_TOPICS.map(({ label }) => label)).toEqual([
+      'Technology & AI', 'Career Development', 'Sports', 'Wellbeing',
+      'Music', 'Photography', 'Volunteering', 'Food & Culture',
+    ]);
+    expect(INTEREST_TOPICS.flatMap(({ eventIds }) => eventIds)).toEqual(EVENTS.map(({ id }) => id));
+    expect(new Set(INTEREST_TOPICS.map(({ id }) => id)).size).toBe(8);
+    expect(EVENTS.map((event) => [event.id, event.title,
+      INTEREST_TOPICS.find((topic) => topic.id === EVENT_TOPIC_IDS[event.id]).label])).toEqual(expected);
+  });
+  it('bypasses adjustment for empty preferences, preserving every baseline entry exactly', () => {
+    expect(rankEvents(EVENTS, DEMO_USER, [])).toEqual(rankEvents(EVENTS, DEMO_USER));
+    for (const event of EVENTS) {
+      expect(scoreEvent(event, DEMO_USER, [])).toEqual(scoreEvent(event, DEMO_USER));
+    }
+  });
+
+  it('uses the requested 0.7 coefficient and explicit topic matching', () => {
+    expect(TAG_MATCH_COEFFICIENT).toBe(0.7);
+    expect(scoreEvent(byId('E06'), DEMO_USER, ['wellbeing']))
+      .toMatchObject({ interest: 82, time: 0, affordability: 75, score: 56 });
+    expect(scoreEvent(byId('E05'), DEMO_USER, ['sports']))
+      .toMatchObject({ interest: 82, time: 100, affordability: 100, score: 91 });
+    expect(scoreEvent(byId('E01'), DEMO_USER, ['wellbeing']))
+      .toMatchObject({ interest: 30, time: 100, affordability: 50, score: 55 });
+  });
+
+  it('supports multiple topics without stacking matching points', () => {
+    const selected = ['sports', 'wellbeing', 'photography'];
+    expect(scoreEvent(byId('E06'), DEMO_USER, selected))
+      .toEqual(scoreEvent(byId('E06'), DEMO_USER, ['wellbeing']));
+    expect(scoreEvent(byId('E05'), DEMO_USER, selected).score).toBe(91);
+    expect(scoreEvent(byId('E08'), DEMO_USER, selected).score).toBe(58);
+    expect(scoreEvent(byId('E06'), DEMO_USER, ['sports']).score).toBe(21);
+    expect(scoreEvent(byId('E05'), DEMO_USER, ['wellbeing']).score).toBe(56);
+  });
+
+  it('supports configuring tag influence without changing the outer weights', () => {
+    expect(scoreEvent(byId('E06'), DEMO_USER, ['wellbeing'], 0.5))
+      .toMatchObject({ interest: 70, score: 50 });
+    expect(rankEvents(EVENTS, DEMO_USER, ['wellbeing'], 0)).toEqual(rankEvents(EVENTS, DEMO_USER));
+  });
+
+  it.each(INTEREST_TOPICS)('scores every event correctly when selecting $label', (topic) => {
+      const ranked = rankEvents(EVENTS, DEMO_USER, [topic.id]);
+      expect(ranked).toHaveLength(10);
+      expect(new Set(ranked.map(({ event }) => event.id))).toEqual(new Set(EVENTS.map(({ id }) => id)));
+      for (const entry of ranked) {
+        const original = scoreEvent(entry.event, DEMO_USER);
+        const match = topic.eventIds.includes(entry.event.id) ? 100 : 0;
+        expect(entry.interest).toBeCloseTo(0.3 * original.interest + 0.7 * match, 10);
+        expect(entry.score).toBeCloseTo(entry.contributions.interest + entry.contributions.time + entry.contributions.affordability, 10);
+        expect(entry.score).toBeCloseTo(0.5 * (0.3 * original.interest + 0.7 * match)
+          + original.contributions.time + original.contributions.affordability, 10);
+        expect(matchesInterestTopic(entry.event, [topic.id])).toBe(match === 100);
+      }
+  });
+
+  it('recalculates after removal and reset without mutating the demo context', () => {
+    const context = JSON.stringify({ EVENTS, DEMO_USER });
+    const selected = ['wellbeing', 'photography'];
+    const combined = rankEvents(EVENTS, DEMO_USER, selected);
+    const remaining = rankEvents(EVENTS, DEMO_USER, selected.filter((topic) => topic !== 'wellbeing'));
+    expect(combined).not.toEqual(remaining);
+    expect(remaining).toEqual(rankEvents(EVENTS, DEMO_USER, ['photography']));
+    expect(rankEvents(EVENTS, DEMO_USER, selected.filter(() => false))).toEqual(rankEvents(EVENTS, DEMO_USER));
+    expect(selected).toEqual(['wellbeing', 'photography']);
+    expect(JSON.stringify({ EVENTS, DEMO_USER })).toBe(context);
+  });
+
+  it('breaks adjusted score ties by ID even with reversed dataset order', () => {
+    const tied = EVENTS.map((event) => ({ ...event, category: 'Arts', price: 0, time: '19:00', tags: ['social'] }));
+    expect(rankEvents([...tied].reverse(), DEMO_USER, INTEREST_TOPICS.map(({ id }) => id)).map(({ event }) => event.id))
+      .toEqual(EVENTS.map(({ id }) => id));
+  });
+
+  it('ignores descriptive tags and titles when matching an event topic', () => {
+    const changed = { ...byId('E06'), title: 'Sports Food Technology', tags: ['sports', 'social', 'team'] };
+    expect(matchesInterestTopic(changed, ['sports'])).toBe(false);
+    expect(matchesInterestTopic(changed, ['wellbeing'])).toBe(true);
+    expect(scoreEvent(changed, DEMO_USER, ['wellbeing']))
+      .toEqual(scoreEvent(byId('E06'), DEMO_USER, ['wellbeing']));
   });
 });
 

@@ -4,6 +4,7 @@
  */
 export function initModeSwitch(fieldset, onChange) {
   const track = fieldset.querySelector('.mode-track');
+  const inputs = [...track.querySelectorAll('input[name="ranking-mode"]')];
   let gesture = null;
   let suppressClick = false;
 
@@ -26,15 +27,17 @@ export function initModeSwitch(fieldset, onChange) {
     }
     if (!gesture.dragging) return;
     const rect = track.getBoundingClientRect();
-    const progress = Math.min(1, Math.max(0, (event.clientX - rect.left - rect.width / 4) / (rect.width / 2)));
+    const segmentWidth = (rect.width - 8) / inputs.length;
+    const progress = Math.min(inputs.length - 1, Math.max(0, (event.clientX - rect.left - 4 - segmentWidth / 2) / segmentWidth));
     track.style.setProperty('--slide', `${progress * 100}%`);
   });
   const finish = (event) => {
     if (!gesture || gesture.id !== event.pointerId) return;
     if (gesture.dragging && event.type === 'pointerup') {
       const rect = track.getBoundingClientRect();
-      const value = event.clientX < rect.left + rect.width / 2 ? 'basic' : 'explained';
-      const input = track.querySelector(`input[value="${value}"]`);
+      const index = Math.min(inputs.length - 1, Math.max(0,
+        Math.floor((event.clientX - rect.left - 4) / ((rect.width - 8) / inputs.length))));
+      const input = inputs[index];
       if (!input.checked) {
         input.checked = true;
         input.dispatchEvent(new Event('change', { bubbles: true }));

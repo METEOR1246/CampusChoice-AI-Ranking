@@ -1,5 +1,5 @@
 /**
- * Ranking module for CampusChoice (Milestone 2).
+ * Ranking module for CampusChoice (Milestones 2–4).
  *
  * This is a deliberately simple, transparent, rule-based scoring function.
  * It is NOT a trained AI model — every component is a fixed formula that can
@@ -13,6 +13,8 @@
  * Ties are broken deterministically by ascending event ID.
  */
 
+import { matchesInterestTopic } from './data/interest-topics.js';
+
 /** Component weights used by the score formula. */
 export const WEIGHTS = {
   interest: 0.5,
@@ -25,6 +27,13 @@ export const INTEREST_PER_LEVEL = 20;
 
 /** Affordability penalty applied per whole GBP of ticket price. */
 export const PRICE_PENALTY_PER_GBP = 5;
+
+/**
+ * Initial design choice, not an empirically validated parameter.
+ * Change this coefficient to configure the influence of binary topic matching.
+ * The export name is retained from the initial tag-based implementation.
+ */
+export const TAG_MATCH_COEFFICIENT = 0.7;
 
 /**
  * Derive a time slot from a 24-hour "HH:MM" string.
@@ -78,10 +87,18 @@ export function computeAffordability(price) {
  *
  * @param {import('./data/events.js').Event} event
  * @param {import('./data/preferences.js').UserPreferences} preferences
+ * @param {string[]} selectedTopics Canonical topic IDs; empty uses the baseline.
+ * @param {number} coefficient Topic influence, from 0 to 1.
  * @returns {{ interest: number, time: number, affordability: number, contributions: { interest: number, time: number, affordability: number }, score: number }}
  */
-export function scoreEvent(event, preferences) {
-  const interest = computeInterest(event.category, preferences);
+export function scoreEvent(event, preferences, selectedTopics = [], coefficient = TAG_MATCH_COEFFICIENT) {
+  const originalInterest = computeInterest(event.category, preferences);
+  const topicMatch = matchesInterestTopic(event, selectedTopics) ? 100 : 0;
+  // Equivalent to (1 − coefficient) × OriginalInterest + coefficient × TopicMatch.
+  // Empty preferences bypass adjustment entirely to retain the exact baseline.
+  const interest = selectedTopics.length
+    ? originalInterest + coefficient * (topicMatch - originalInterest)
+    : originalInterest;
   const time = computeTime(event.time, preferences);
   const affordability = computeAffordability(event.price);
   const contributions = {
@@ -100,11 +117,13 @@ export function scoreEvent(event, preferences) {
  *
  * @param {import('./data/events.js').Event[]} events
  * @param {import('./data/preferences.js').UserPreferences} preferences
+ * @param {string[]} selectedTopics Canonical topic IDs; never filters the dataset.
+ * @param {number} coefficient Topic influence, from 0 to 1.
  * @returns {Array<ReturnType<typeof scoreEvent> & { event: import('./data/events.js').Event, rank: number }>}
  */
-export function rankEvents(events, preferences) {
+export function rankEvents(events, preferences, selectedTopics = [], coefficient = TAG_MATCH_COEFFICIENT) {
   return events
-    .map((event) => ({ event, ...scoreEvent(event, preferences) }))
+    .map((event) => ({ event, ...scoreEvent(event, preferences, selectedTopics, coefficient) }))
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       return a.event.id.localeCompare(b.event.id);

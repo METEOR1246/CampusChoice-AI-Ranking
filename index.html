@@ -28,13 +28,34 @@
               <span class="mode-slider" aria-hidden="true"></span>
               <label class="mode-segment"><input type="radio" name="ranking-mode" value="basic" checked /><span>Basic Ranking</span></label>
               <label class="mode-segment"><input type="radio" name="ranking-mode" value="explained" /><span>Explained Ranking</span></label>
+              <label class="mode-segment"><input type="radio" name="ranking-mode" value="adjustable" /><span>Adjustable Ranking</span></label>
             </div>
           </fieldset>
           <p id="mode-help" class="list-sub">
-            The same events and order. Choose Explained to see why.
+            Basic and Explained use the original order. Adjustable lets you choose interest tags.
           </p>
         </div>
         <div id="preferences"></div>
+        <section id="interest-preferences" class="interest-preferences" aria-labelledby="interests-heading" hidden></section>
+        <section class="decision-tasks" aria-label="Optional decision scenarios">
+          <details id="task-options">
+            <summary>Try a decision scenario <span class="list-sub">Optional</span></summary>
+            <p class="list-sub">Choose a scenario to start fresh. You decide which event suits you.</p>
+            <div class="task-actions">
+              <button type="button" class="btn btn--ghost" data-task="everyday">Start Everyday Choice</button>
+              <button type="button" class="btn btn--ghost" data-task="changing">Start Changing Priorities</button>
+            </div>
+          </details>
+          <div id="task-context" hidden>
+            <p id="active-task-name" class="task-name"></p>
+            <p id="active-task-scenario" class="task-scenario"></p>
+            <div class="task-actions">
+              <button type="button" class="btn btn--ghost" id="restart-task">Restart task</button>
+              <button type="button" class="btn btn--link" id="leave-task">Return to normal browsing</button>
+            </div>
+          </div>
+          <p id="task-status" class="list-sub" role="status" aria-live="polite"></p>
+        </section>
       </section>
 
       <section class="panel panel--main" aria-labelledby="list-heading">
@@ -46,6 +67,8 @@
         </div>
 
         <div id="selection-banner" class="selection-banner" aria-live="polite"></div>
+        <p id="ranking-status" class="ranking-status" role="status" aria-live="polite" aria-atomic="true"></p>
+        <section id="decision-summary" class="decision-summary" aria-labelledby="decision-heading" hidden></section>
 
         <ol id="event-list" class="event-list"></ol>
       </section>
