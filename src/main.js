@@ -13,6 +13,7 @@ import { INTEREST_TOPICS, matchesInterestTopic } from './data/interest-topics.js
 import { rankEvents } from './ranking.js';
 import { initModeSwitch } from './mode-switch.js';
 import { DECISION_TASKS, CONTROL_RATINGS, captureDecision } from './decision-tasks.js';
+import { DISCOVERY_RULES, createDiscoveryState, syncDiscoveryPreferences, observeDetail, nextSuggestion, resolveSuggestion } from './interest-discovery.js';
 import {
   renderPreferences,
   renderRankedList,
@@ -39,6 +40,7 @@ let activeTask = null;
 let decision = null;
 let explanationOpened = false;
 let controlRating = null;
+let discovery = createDiscoveryState();
 
 const prefsEl = document.getElementById('preferences');
 const listEl = document.getElementById('event-list');
@@ -50,7 +52,81 @@ const interestsEl = document.getElementById('interest-preferences');
 const rankingStatus = document.getElementById('ranking-status');
 const decisionEl = document.getElementById('decision-summary');
 const taskStatus = document.getElementById('task-status');
+const discoveryEl = document.getElementById('interest-discovery');
+const discoveryStatus = document.getElementById('discovery-status');
 const preferenceChangeMessage = 'Your preferences have changed and the ranking has been updated. Please choose an event again.';
+let discoveryOpenerId = null;
+
+function renderDiscovery(offer = false) {
+  discoveryStatus.hidden = mode !== 'adjustable' || !discoveryStatus.textContent;
+  discovery = syncDiscoveryPreferences(discovery, selectedTopics);
+  if (mode !== 'adjustable' || dialogEl.open || !discovery.pendingRule) {
+    if (discoveryEl.open) discoveryEl.close();
+  }
+  // Only a completed detail interaction may open a modal, never a tag removal.
+  if (!offer || mode !== 'adjustable' || dialogEl.open || discoveryEl.open) return;
+  discovery = nextSuggestion(discovery, selectedTopics);
+  const rule = DISCOVERY_RULES.find((item) => item.id === discovery.pendingRule);
+  if (!rule) return;
+  discoveryEl.dataset.rule = rule.id;
+  document.getElementById('discovery-reason').textContent = rule.message;
+  discoveryEl.querySelector('[data-discovery="accept"]').textContent =
+    rule.topics.length === 2 ? 'Add both interests' : 'Add interest';
+  discoveryOpenerId = document.activeElement?.dataset.eventId ?? null;
+  discoveryEl.showModal();
+  discoveryEl.querySelector('[data-discovery="dismiss"]').focus();
+}
+
+function restoreDiscoveryFocus() {
+  listEl.querySelector(`[data-action="details"][data-event-id="${discoveryOpenerId}"]`)?.focus({ preventScroll: true });
+}
+
+function handleDiscovery(dismissing) {
+  const rule = DISCOVERY_RULES.find((item) => item.id === discovery.pendingRule);
+  if (!rule) return;
+  discovery = resolveSuggestion(discovery, dismissing);
+  discoveryEl.close();
+  if (dismissing) {
+    discoveryStatus.textContent = `${rule.label} suggestion dismissed. Your interests and decision are unchanged.`;
+  } else {
+    updateInterests([...new Set([...selectedTopics, ...rule.topics])],
+      `Added ${rule.label}. Ranking updated; all 10 events are shown.`);
+    discoveryStatus.textContent = `${rule.label} added to your interests. You can remove the topics or reset preferences.`;
+  }
+  discoveryStatus.hidden = mode !== 'adjustable';
+  restoreDiscoveryFocus();
+}
+
+discoveryEl.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  handleDiscovery(true);
+});
+discoveryEl.addEventListener('keydown', (event) => {
+  if (event.key !== 'Tab') return;
+  const first = discoveryEl.querySelector('[data-discovery="accept"]');
+  const last = discoveryEl.querySelector('[data-discovery="dismiss"]');
+  if ((event.shiftKey && document.activeElement === first)
+    || (!event.shiftKey && document.activeElement === last)) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  }
+});
+discoveryEl.addEventListener('close', () => {
+  // A native/external close is a dismissal; internal closes resolve state first.
+  if (discovery.pendingRule && mode === 'adjustable') handleDiscovery(true);
+  restoreDiscoveryFocus();
+});
+discoveryEl.addEventListener('click', (event) => {
+  if (event.target === discoveryEl) {
+    const bounds = discoveryEl.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right
+      || event.clientY < bounds.top || event.clientY > bounds.bottom) handleDiscovery(true);
+    return;
+  }
+  const button = event.target.closest('[data-discovery]');
+  if (!button || !discoveryEl.open || mode !== 'adjustable' || dialogEl.open) return;
+  handleDiscovery(button.dataset.discovery === 'dismiss');
+});
 
 function renderTaskDecision() {
   renderDecision(decisionEl, decision, explanationOpened, controlRating);
@@ -71,6 +147,8 @@ function startTask(task) {
   decision = null;
   explanationOpened = false;
   controlRating = null;
+  discovery = createDiscoveryState();
+  discoveryStatus.textContent = '';
   document.getElementById('task-context').hidden = false;
   document.getElementById('active-task-name').textContent = `Active task: ${task.name}`;
   document.getElementById('active-task-scenario').textContent = task.scenario;
@@ -118,6 +196,7 @@ function render() {
   interestsEl.hidden = mode !== 'adjustable';
   renderInterests(interestsEl, selectedTopics);
   renderTaskDecision();
+  renderDiscovery();
 }
 
 /** Select an event, or toggle it off if it is already selected. */
@@ -156,6 +235,8 @@ function openDetails(eventId) {
   } else {
     dialogEl.setAttribute('open', '');
   }
+  if (mode === 'adjustable') discovery = observeDetail(discovery, eventId, selectedTopics);
+  renderDiscovery();
 }
 
 /** Only changed preferences invalidate a choice; task context and new topics remain. */
@@ -164,6 +245,8 @@ function updateInterests(nextTopics, message) {
     || nextTopics.some((topic) => !selectedTopics.includes(topic));
   if (!changed) return;
   selectedTopics = nextTopics;
+  discovery = syncDiscoveryPreferences(discovery, selectedTopics);
+  discoveryStatus.textContent = '';
   if (selectedEventId) {
     selectedEventId = null;
     decision = null;
@@ -248,6 +331,7 @@ dialogEl.addEventListener('close', () => {
   // Re-ranking replaces cards, so the browser's original opener may no longer exist.
   listEl.querySelector(`[data-action="details"][data-event-id="${detailsEventId}"]`)?.focus();
   detailsEventId = null;
+  renderDiscovery(true);
 });
 
 // Close the dialog when clicking the backdrop.

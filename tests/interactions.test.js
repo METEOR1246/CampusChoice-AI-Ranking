@@ -21,13 +21,339 @@ beforeEach(async () => {
   vi.resetModules();
   document.body.innerHTML = shell.match(/<body>([\s\S]*?)<\/body>/)[1];
   // jsdom verifies wiring and dialog content; native modal behaviour is checked in the browser.
-  const dialog = query('#details-dialog');
-  dialog.showModal = vi.fn(() => dialog.setAttribute('open', ''));
-  dialog.close = vi.fn(() => dialog.removeAttribute('open'));
+  document.querySelectorAll('dialog').forEach((dialog) => {
+    dialog.showModal = vi.fn(() => dialog.setAttribute('open', ''));
+    dialog.close = vi.fn(() => dialog.removeAttribute('open'));
+  });
   await import('../src/main.js');
 });
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe('Interest Discovery application loop', () => {
+  const discoveryPanel = () => ({
+    hidden: !query('#interest-discovery').open,
+    dataset: query('#interest-discovery').dataset,
+  });
+  const close = () => {
+    query('#details-close').click();
+    query('#details-dialog').dispatchEvent(new Event('close'));
+  };
+  const explore = (id) => { action('details', id).click(); close(); };
+  const qualify = () => { explore('E01'); explore('E02'); };
+  const topic = (id = 'technology-ai') => query(`#interest-preferences [data-topic="${id}"]`);
+
+  it('shows the template suggestion after qualifying details close without changing ranking', () => {
+    switchMode('adjustable');
+    const before = ranking();
+    explore('E01');
+    action('details', 'E02').click();
+    expect(discoveryPanel().hidden).toBe(true);
+    expect(query('#details-dialog').open).toBe(true);
+    close();
+    expect(discoveryPanel().hidden).toBe(false);
+    expect(query('#discovery-title').textContent).toBe('We noticed a possible interest');
+    expect(query('#discovery-reason').textContent).toBe('You explored Coding Workshop and AI Ethics Seminar. You might be interested in Technology & AI. Would you like to prioritise this topic?');
+    expect(query('#discovery-uncertainty').textContent).toContain('tentative');
+    expect(ranking()).toEqual(before);
+    expect(topic().getAttribute('aria-pressed')).toBe('false');
+    expect(document.activeElement).toBe(query('[data-discovery="dismiss"]'));
+  });
+
+  it.each([['E01', 'E01'], ['E01', 'E03']])('does not suggest for detail sequence %s then %s', (first, second) => {
+    switchMode('adjustable');
+    explore(first);
+    explore(second);
+    expect(discoveryPanel().hidden).toBe(true);
+  });
+
+  it.each(['basic', 'explained'])('does not observe or offer suggestions in %s mode', (mode) => {
+    switchMode(mode);
+    const baseline = ranking();
+    qualify();
+    expect(discoveryPanel().hidden).toBe(true);
+    expect(query('#discovery-status').hidden).toBe(true);
+    expect(ranking()).toEqual(baseline);
+    switchMode('adjustable');
+    expect(discoveryPanel().hidden).toBe(true);
+    explore('E02');
+    expect(discoveryPanel().hidden).toBe(true);
+    explore('E01');
+    expect(discoveryPanel().hidden).toBe(false);
+  });
+
+  it('does not count event selection as browsing evidence', () => {
+    switchMode('adjustable');
+    action('select', 'E01').click();
+    action('select', 'E02').click();
+    explore('E01');
+    expect(discoveryPanel().hidden).toBe(true);
+  });
+
+  it('accepts the correct topic using actual ranking and keeps manual removal/reset available', () => {
+    switchMode('adjustable');
+    qualify();
+    query('[data-discovery="accept"]').click();
+    expect(topic().getAttribute('aria-pressed')).toBe('true');
+    expect(ranking()).toEqual(rankEvents(EVENTS, DEMO_USER, ['technology-ai'])
+      .map((entry) => ({ id: entry.event.id, title: entry.event.title, score: entry.score })));
+    expect(query('.rank-movement')).not.toBeNull();
+    expect(discoveryPanel().hidden).toBe(true);
+    expect(query('#discovery-status').textContent).toContain('Technology & AI added');
+    expect(document.activeElement).toBe(action('details', 'E02'));
+    action('details', 'E02').click();
+    expect(query('#details-body [data-topic="technology-ai"]').getAttribute('aria-pressed')).toBe('true');
+    close();
+    topic().click();
+    expect(topic().getAttribute('aria-pressed')).toBe('false');
+    expect(discoveryPanel().hidden).toBe(true);
+    explore('E01');
+    expect(discoveryPanel().hidden).toBe(true);
+    explore('E02');
+    expect(discoveryPanel().hidden).toBe(false);
+    query('[data-discovery="dismiss"]').click();
+    qualify();
+    expect(discoveryPanel().hidden).toBe(true);
+    topic('music').click();
+    query('[data-action="reset-topics"]').click();
+    expect(ranking()).toEqual(rankEvents(EVENTS, DEMO_USER)
+      .map((entry) => ({ id: entry.event.id, title: entry.event.title, score: entry.score })));
+  });
+
+  it('dismisses without modifying interests, ranking, selection or feedback and does not repeat', () => {
+    query('[data-task="everyday"]').click();
+    switchMode('adjustable');
+    topic('sports').click();
+    action('select', 'E05').click();
+    query('input[name="control-rating"][value="4"]').click();
+    const before = ranking();
+    const summary = query('#decision-summary').innerHTML;
+    qualify();
+    query('[data-discovery="dismiss"]').click();
+    expect(discoveryPanel().hidden).toBe(true);
+    expect(ranking()).toEqual(before);
+    expect(topic().getAttribute('aria-pressed')).toBe('false');
+    expect(topic('sports').getAttribute('aria-pressed')).toBe('true');
+    expect(query('.event-card.is-selected').dataset.eventId).toBe('E05');
+    expect(query('#decision-summary').innerHTML).toBe(summary);
+    expect(query('input[name="control-rating"]:checked').value).toBe('4');
+    qualify();
+    switchMode('basic');
+    switchMode('adjustable');
+    expect(discoveryPanel().hidden).toBe(true);
+    topic().click();
+    expect(topic().getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('never offers already selected interests and removes pending suggestions when selected manually', () => {
+    switchMode('adjustable');
+    topic().click();
+    qualify();
+    expect(discoveryPanel().hidden).toBe(true);
+    // Suppressed views are discarded; removal alone must never offer a modal.
+    topic().click();
+    expect(discoveryPanel().hidden).toBe(true);
+    explore('E01');
+    expect(discoveryPanel().hidden).toBe(true);
+    explore('E02');
+    expect(discoveryPanel().hidden).toBe(false);
+    // Programmatic chip change also reconciles a pending rule.
+    topic().click();
+    expect(discoveryPanel().hidden).toBe(true);
+    topic().click();
+    expect(discoveryPanel().hidden).toBe(true);
+  });
+
+  it.each(['everyday', 'changing'])('accepting during %s clears an outdated decision and captures a fresh one on reselection', (task) => {
+    query(`[data-task="${task}"]`).click();
+    switchMode('adjustable');
+    topic('sports').click();
+    action('select', 'E05').click();
+    query('input[name="control-rating"][value="5"]').click();
+    qualify();
+    query('[data-discovery="accept"]').click();
+    expect(query('.event-card.is-selected')).toBeNull();
+    expect(query('#decision-summary').hidden).toBe(true);
+    expect(query('input[name="control-rating"]')).toBeNull();
+    expect(topic().getAttribute('aria-pressed')).toBe('true');
+    expect(topic('sports').getAttribute('aria-pressed')).toBe('true');
+    expect(query('#active-task-name').textContent).toContain(DECISION_TASKS.find((item) => item.id === task).name);
+    expect(query('#ranking-status').textContent).toBe('Your preferences have changed and the ranking has been updated. Please choose an event again.');
+    expect(query('#discovery-status').textContent).toContain('Technology & AI added');
+    action('select', 'E02').click();
+    const rank = rankEvents(EVENTS, DEMO_USER, ['sports', 'technology-ai']).find((entry) => entry.event.id === 'E02').rank;
+    expect(query('#decision-summary').textContent).toContain(`Current ranking at selection: #${rank}`);
+    expect(query('#decision-summary').textContent).toContain('Interest topics at selection: Sports, Technology & AI');
+    expect(query('input[name="control-rating"]:checked')).toBeNull();
+  });
+
+  it.each(['restart', 'new task'])('%s clears pending suggestions and distinct-view history', (operation) => {
+    query('[data-task="everyday"]').click();
+    switchMode('adjustable');
+    qualify();
+    explore('E03');
+    if (operation === 'restart') query('#restart-task').click();
+    else query('[data-task="changing"]').click();
+    expect(discoveryPanel().hidden).toBe(true);
+    expect(query('#discovery-status').textContent).toBe('');
+    explore('E02');
+    expect(discoveryPanel().hidden).toBe(true);
+    explore('E01');
+    expect(discoveryPanel().hidden).toBe(false);
+  });
+
+  it('clears dismissed-topic history on a fresh task and page reinitialisation', async () => {
+    switchMode('adjustable');
+    qualify();
+    query('[data-discovery="dismiss"]').click();
+    query('[data-task="everyday"]').click();
+    qualify();
+    expect(discoveryPanel().hidden).toBe(false);
+    query('[data-discovery="dismiss"]').click();
+    vi.resetModules();
+    document.body.innerHTML = shell.match(/<body>([\s\S]*?)<\/body>/)[1];
+    document.querySelectorAll('dialog').forEach((dialog) => {
+      dialog.showModal = () => dialog.setAttribute('open', '');
+      dialog.close = () => dialog.removeAttribute('open');
+    });
+    await import('../src/main.js');
+    switchMode('adjustable');
+    explore('E02');
+    expect(discoveryPanel().hidden).toBe(true);
+    explore('E01');
+    expect(discoveryPanel().hidden).toBe(false);
+  });
+
+  it('hides one pending suggestion in baseline modes and resumes it without altering preferences', () => {
+    switchMode('adjustable');
+    qualify();
+    for (const mode of ['basic', 'explained']) {
+      switchMode(mode);
+      expect(discoveryPanel().hidden).toBe(true);
+      expect(query('#discovery-status').hidden).toBe(true);
+      expect(ranking()).toEqual(rankEvents(EVENTS, DEMO_USER)
+        .map((entry) => ({ id: entry.event.id, title: entry.event.title, score: entry.score })));
+    }
+    switchMode('adjustable');
+    expect(discoveryPanel().hidden).toBe(true);
+    explore('E02');
+    expect(discoveryPanel().hidden).toBe(false);
+    expect(topic().getAttribute('aria-pressed')).toBe('false');
+    expect(document.querySelectorAll('[data-discovery="accept"]')).toHaveLength(1);
+  });
+
+  it('shows only one eligible suggestion at a time, with the next topic after handling it', () => {
+    switchMode('adjustable');
+    qualify();
+    explore('E03');
+    explore('E04');
+    expect(discoveryPanel().dataset.rule).toBe('technology-ai');
+    query('[data-discovery="dismiss"]').click();
+    expect(discoveryPanel().hidden).toBe(true);
+    explore('E04');
+    expect(discoveryPanel().dataset.rule).toBe('career-development');
+    expect(query('#discovery-reason').textContent).toContain('Career Development');
+    query('[data-discovery="accept"]').click();
+    expect(topic('career-development').getAttribute('aria-pressed')).toBe('true');
+    expect(discoveryPanel().hidden).toBe(true);
+  });
+
+  it('adds both existing Sports and Wellbeing topics and resets an outdated decision', () => {
+    query('[data-task="changing"]').click();
+    switchMode('adjustable');
+    action('select', 'E09').click();
+    query('input[name="control-rating"][value="5"]').click();
+    explore('E05');
+    expect(discoveryPanel().hidden).toBe(true);
+    explore('E06');
+    expect(discoveryPanel().dataset.rule).toBe('sports-wellbeing');
+    expect(query('#discovery-reason').textContent).toContain('Football Social and Campus Yoga');
+    expect(query('[data-discovery="accept"]').textContent).toBe('Add both interests');
+    query('[data-discovery="accept"]').click();
+    expect(topic('sports').getAttribute('aria-pressed')).toBe('true');
+    expect(topic('wellbeing').getAttribute('aria-pressed')).toBe('true');
+    expect(document.querySelectorAll('#interest-preferences [data-topic]')).toHaveLength(8);
+    expect(ranking()).toEqual(rankEvents(EVENTS, DEMO_USER, ['sports', 'wellbeing'])
+      .map((entry) => ({ id: entry.event.id, title: entry.event.title, score: entry.score })));
+    expect(query('.is-selected')).toBeNull();
+    expect(query('#decision-summary').hidden).toBe(true);
+    expect(query('input[name="control-rating"]')).toBeNull();
+    expect(query('#ranking-status').textContent).toContain('Please choose an event again');
+  });
+
+  it.each(['sports', 'wellbeing'])('discards combined evidence while %s is selected and requires fresh views', (selected) => {
+    switchMode('adjustable');
+    explore('E05');
+    topic(selected).click();
+    explore('E05');
+    explore('E06');
+    expect(discoveryPanel().hidden).toBe(true);
+    topic(selected).click();
+    expect(discoveryPanel().hidden).toBe(true);
+    explore('E06');
+    expect(discoveryPanel().hidden).toBe(true);
+    explore('E05');
+    expect(discoveryPanel().hidden).toBe(false);
+  });
+
+  it('keeps combined inference suppressed until both accepted topics are removed', () => {
+    switchMode('adjustable');
+    explore('E05'); explore('E06');
+    query('[data-discovery="accept"]').click();
+    topic('sports').click();
+    explore('E05'); explore('E06');
+    expect(discoveryPanel().hidden).toBe(true);
+    topic('wellbeing').click();
+    expect(discoveryPanel().hidden).toBe(true);
+    explore('E05');
+    expect(discoveryPanel().hidden).toBe(true);
+    explore('E06');
+    expect(discoveryPanel().hidden).toBe(false);
+  });
+
+  it('treats Escape cancellation as dismissal, restores focus and retains decisions', () => {
+    switchMode('adjustable');
+    action('select', 'E09').click();
+    const before = ranking();
+    qualify();
+    expect(document.activeElement).toBe(query('[data-discovery="dismiss"]'));
+    const cancel = new Event('cancel', { cancelable: true });
+    query('#interest-discovery').dispatchEvent(cancel);
+    expect(cancel.defaultPrevented).toBe(true);
+    expect(discoveryPanel().hidden).toBe(true);
+    expect(document.activeElement).toBe(action('details', 'E02'));
+    expect(ranking()).toEqual(before);
+    expect(query('.is-selected').dataset.eventId).toBe('E09');
+    topic().click(); topic().click();
+    qualify();
+    expect(discoveryPanel().hidden).toBe(true);
+  });
+
+  it('treats a native close as dismissal without creating a new modal', () => {
+    switchMode('adjustable');
+    qualify();
+    query('#interest-discovery').close();
+    query('#interest-discovery').dispatchEvent(new Event('close'));
+    qualify();
+    expect(discoveryPanel().hidden).toBe(true);
+  });
+
+  it('wraps Tab and Shift+Tab between the modal actions', () => {
+    switchMode('adjustable');
+    qualify();
+    const modal = query('#interest-discovery');
+    const accept = query('[data-discovery="accept"]');
+    const dismiss = query('[data-discovery="dismiss"]');
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    modal.dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(accept);
+    const backwards = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
+    modal.dispatchEvent(backwards);
+    expect(backwards.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(dismiss);
+  });
+});
 
 describe('guided decision tasks', () => {
   const start = (id = 'everyday') => query(`[data-task="${id}"]`).click();

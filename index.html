@@ -37,6 +37,7 @@
         </div>
         <div id="preferences"></div>
         <section id="interest-preferences" class="interest-preferences" aria-labelledby="interests-heading" hidden></section>
+        <p id="discovery-status" class="discovery-status list-sub" role="status" aria-live="polite" aria-atomic="true" hidden></p>
         <section class="decision-tasks" aria-label="Optional decision scenarios">
           <details id="task-options">
             <summary>Try a decision scenario <span class="list-sub">Optional</span></summary>
@@ -80,6 +81,18 @@
           &times;
         </button>
         <div id="details-body"></div>
+      </div>
+    </dialog>
+
+    <dialog id="interest-discovery" class="discovery-dialog" aria-labelledby="discovery-title" aria-describedby="discovery-reason discovery-uncertainty">
+      <div class="discovery-inner">
+        <h2 id="discovery-title">We noticed a possible interest</h2>
+        <p id="discovery-reason"></p>
+        <p id="discovery-uncertainty" class="list-sub">This is a tentative suggestion from your browsing, not a confirmed preference. Your interests change only if you accept.</p>
+        <div class="task-actions">
+          <button type="button" class="btn btn--primary" data-discovery="accept">Add interest</button>
+          <button type="button" class="btn btn--ghost" data-discovery="dismiss" autofocus>Not now</button>
+        </div>
       </div>
     </dialog>
 

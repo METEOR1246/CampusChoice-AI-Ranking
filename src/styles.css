@@ -1,9 +1,9 @@
 :root {
-  --bg: #f5f6fa;
+  --bg: #ffffff;
   --surface: #ffffff;
   --border: #dfe3ee;
   --text: #1f2536;
-  --muted: #6b7280;
+  --muted: #596579;
   --primary: #2f5bea;
   --primary-dark: #2447c0;
   --accent: #0f9d76;
@@ -92,7 +92,13 @@ button:focus-visible, input:focus-visible {
 
 body {
   margin: 0;
-  background: var(--bg);
+  min-height: 100vh;
+  background: var(--bg) linear-gradient(
+    135deg,
+    #d9efff 0%,
+    #eef8ff 45%,
+    #ffffff 100%
+  ) no-repeat;
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -581,6 +587,13 @@ body {
 .rank-movement--up { color: #0b6b51; }
 .rank-movement--down { color: #8b461a; }
 .btn:disabled { opacity: 0.55; cursor: default; }
+
+.discovery-dialog { width: min(500px, calc(100% - 32px)); max-height: calc(100dvh - 32px); box-sizing: border-box; padding: 0; border: 1px solid #bdccef; border-radius: 14px; color: var(--text); background: #fff; box-shadow: 0 16px 48px #17234426; }
+.discovery-dialog::backdrop { background: #17234438; }
+.discovery-inner { padding: 24px; }
+.discovery-inner h2 { margin: 0 0 14px; }
+.discovery-status[hidden] { display: none; }
+.discovery-status { grid-column: 1 / -1; margin: 0; }
 
 .decision-tasks { grid-column: 1 / -1; border-top: 1px solid var(--border); padding-top: 12px; }
 .decision-tasks summary { cursor: pointer; font-size: 0.95rem; font-weight: 650; }
