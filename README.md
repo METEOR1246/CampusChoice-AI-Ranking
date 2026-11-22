@@ -1,6 +1,6 @@
 # CampusChoice: Explainable and Controllable Event Ranking
 
-**README prose word count:** 1,727
+**README prose word count:** 1,785
 
 CampusChoice is a browser prototype for the University of Birmingham's Intelligent Interactive Systems A2. It builds on A1's question: **How does AI-generated ranking influence users' decision-making and perceived control?** This prototype explores that question using transparent rules, optional explanations and explicit preference controls.
 
@@ -89,13 +89,13 @@ Only these three pairs qualify. Repeated views of one event, event selection, an
 
 ### Storyboard sequences for A2
 
-Suggested frames to capture manually:
+Three screenshot-based storyboard sequences are included in the separate A2 report:
 
-- **Everyday exploration:** Basic list → details → selection → decision summary and optional rating.
-- **Understanding ranking:** Explained list → weighted explanation → comparison → informed event choice.
-- **Changing priorities:** scenario → topic selection → changed ranks → choice → preference change clears decision → fresh choice or restart.
+- **Basic Ranking:** Original ranked list → select Interview Skills Clinic → selected card and confirmation banner.
+- **Explained Ranking:** Open the Coding Workshop explanation → inspect the actual 50/30/10 scoring breakdown.
+- **Adjustable Ranking and Interest Discovery:** Select Sports → Football Social rises to #1 → reset preferences and explore E01/E02 → review the Technology & AI suggestion dialog → accept and observe the updated ranking.
 
-These are reproducible demonstration plans, not participant observations or completed storyboard assets.
+These screenshots illustrate implemented interactions, not observations from a user study.
 
 ## Scoring, inference and limitations
 
