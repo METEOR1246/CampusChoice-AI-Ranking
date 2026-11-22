@@ -1,6 +1,7 @@
 # CampusChoice: Explainable and Controllable Event Ranking
 
 **README prose word count:** 1,727
+
 CampusChoice is a browser prototype for the University of Birmingham's Intelligent Interactive Systems A2. It builds on A1's question: **How does AI-generated ranking influence users' decision-making and perceived control?** This prototype explores that question using transparent rules, optional explanations and explicit preference controls.
 
 ## Project status
