@@ -9,7 +9,7 @@ CampusChoice is a browser prototype for the University of Birmingham's Intellige
 - **Implemented:** M2 Basic Ranking; M3 Explained Ranking; M4 tag-based Adjustable Ranking; M5 decision scenarios, choice summaries and optional control ratings; the Interest Discovery suggestion dialog; responsive event cards and ten AI-generated event illustrations.
 - **Final enhancement release:** This revision on `main` includes the Interest Discovery modal, three event-pair rules, suppression and fresh-evidence re-inference after deselection, the diagonal light-blue-to-white background, related tests and updated documentation. It builds on the M4/M5 release [6a090f4](https://github.com/METEOR1246/CampusChoice-AI-Ranking/commit/6a090f48b4975c3c6febcb5772efc92d275f5b07). The project owner authorised this release; its commit is identifiable in Git history by `feat: finalise interest discovery and project documentation`.
 - **Simulated:** All ten events, their prices and schedules, and the fixed student preference profile are demonstration data. Recommendations and tentative interest suggestions are calculated locally; no real university service is connected.
-- **Remaining submission work:** Final acceptance checks, actual storyboard screenshots and the separate A2 report are still to be completed and linked where appropriate.
+- **Submission materials:** The final A2 report and three screenshot-based storyboards have been completed and reviewed. The report is prepared for separate submission, while the source code and development evidence are available in this repository.
 - **Outside scope:** Bookings, accounts, backend services, persistent profiling, analytics/export and a trained recommendation model. No user study or evidence of improved decision-making is claimed.
 
 Temporary interests, selections, inference history and ratings live in memory and disappear on refresh.
@@ -145,7 +145,7 @@ The old M4/M5 prose used 16 November, later than its actual commit timestamp; th
 
 Coverage includes baseline/adjusted scores, deterministic ordering, disclosure, task records, preference-change invalidation, discovery eligibility, suppression, acceptance and reset. jsdom checks do not establish native browser accessibility or user-study outcomes.
 
-Earlier styling checks in this session inspected desktop (1440px) and mobile (390px/320px) without horizontal overflow. Native keyboard/dialog behaviour and final submission acceptance still warrant human review.
+Manual review of the final interface and key interaction flows has been completed. Desktop (1440px) and mobile (390px/320px) layouts were checked without horizontal overflow. The review covered the three ranking modes, preference adjustments, Interest Discovery suggestions and user feedback. These checks verify the prototype's intended behaviour but do not constitute a formal accessibility evaluation or user study.
 
 ## AI assistance
 
@@ -167,4 +167,4 @@ ChatGPT also generated ten cover illustrations for the fictional events. These a
 - [tests/](tests/): four automated suites; [package.json](package.json), [package-lock.json](package-lock.json) and [vite.config.js](vite.config.js): scripts, pinned dependencies and configuration.
 - [public/images/events/](public/images/events/): ten WebP illustrations.
 
-No separate A2 report, captured storyboard, user-study results or image-generation log is included in this repository at the time of this README update. The final report and storyboard evidence will be linked here if they are added to the repository.
+The final A2 report, including three screenshot-based storyboards, has been completed and is prepared for separate submission. It is not included in this repository. No user-study dataset or image-generation logs are included.
