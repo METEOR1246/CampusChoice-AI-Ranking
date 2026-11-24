@@ -1,6 +1,6 @@
 # CampusChoice: Explainable and Controllable Event Ranking
 
-**README prose word count:** 1,785
+**README prose word count:** 1,821
 
 CampusChoice is a browser prototype for the University of Birmingham's Intelligent Interactive Systems A2. It builds on A1's question: **How does AI-generated ranking influence users' decision-making and perceived control?** This prototype explores that question using transparent rules, optional explanations and explicit preference controls.
 
@@ -156,7 +156,7 @@ Two examples show how this assistance was used:
 - **Interest Discovery:** I asked ChatGPT how to improve CampusChoice so that it more clearly demonstrated the characteristics of an intelligent interactive system. ChatGPT proposed adding **Interest Discovery**, a lightweight behaviour-based interest suggestion feature that demonstrates a sensing–inference–feedback loop. I decided to adopt the proposal, then requested that its initially inconspicuous inline suggestion beneath the interest tags be replaced with a more noticeable confirmation dialog. TRAE assisted with implementation and tests, while I inspected the updated interaction in the local preview and checked the results. I subsequently authorised the final enhancement release.
 - **Adjustable Ranking:** An early design proposed three percentage-weight sliders. After considering how someone would actually use the prototype, I chose interest-topic tags instead, making it easier to express preferences naturally rather than requiring fine-grained algorithm controls. This was a deliberate human-centred design revision, not an automatically accepted AI output. The revised behaviour was checked through local interaction and regression tests.
 
-ChatGPT also generated ten cover illustrations for the fictional events. These are demonstration images, not photographs of real University of Birmingham activities; they are served locally and do not influence recommendation scores. The application uses transparent, rule-based ranking and interest inference, with no generative AI model at runtime.
+ChatGPT also generated ten cover illustrations for the fictional events. These are demonstration images, not photographs of real University of Birmingham activities; they are served locally and do not influence recommendation scores. The application uses transparent, rule-based ranking and interest inference, with no generative AI model at runtime. AI was also used to assist with drafting, proofreading, and formatting the A2 project report. I reviewed and revised the content to ensure it accurately reflected the implemented system, my design decisions, and the development process.
 
 ## Additional files
 
